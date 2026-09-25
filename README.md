@@ -14,6 +14,8 @@ and exposes them as MCP tools:
 - `nearby_places_stops_and_kiosks`
 - `nearest_buses_for_stop`
 - `route_path_and_vehicles`
+- `plan_direct_trip_between_stops` (high-level planning + ETA summary)
+- `summarize_stop_arrivals` (route-grouped live ETA view)
 
 ## API investigation artifacts
 
@@ -65,3 +67,8 @@ Defaults are already set for Antalya.
 - Route path + live fleet:
   - `route_path_and_vehicles` with `{ "display_route_code": "106", "direction": 0, "data_mode": "full" }`
   - `route_path_and_vehicles` with `{ "display_route_code": "106", "direction": 0, "data_mode": "live-only" }`
+- Direct trip planning (EN/TR + compact/detailed):
+  - `plan_direct_trip_between_stops` with `{ "origin_query": "otogar", "destination_query": "markantalya", "language": "en", "output_mode": "compact", "max_routes": 3 }`
+  - `plan_direct_trip_between_stops` with `{ "origin_query": "otogar", "destination_query": "üniversite", "language": "tr", "output_mode": "detailed", "max_routes": 5 }`
+- ETA-focused stop summary:
+  - `summarize_stop_arrivals` with `{ "bus_stop_id": "10828", "latitude": 36.920686, "longitude": 30.6650235, "language": "en", "output_mode": "compact" }`

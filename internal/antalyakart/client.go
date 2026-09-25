@@ -85,7 +85,89 @@ func (c *Client) RoutePathInfo(displayRouteCode, direction, resultType string) (
 	return c.get("/web/pathInfo", params)
 }
 
+func (c *Client) SearchRoutesAndStopsTyped(keyword string) (*SearchResponse, error) {
+	params := map[string]string{}
+	if strings.TrimSpace(keyword) != "" {
+		params["keyword"] = keyword
+	}
+	var out SearchResponse
+	if err := c.getJSON("/web/nearest/find", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) NearbyPlacesStopsAndKiosksTyped(lat, lng float64) (*NearbyResponse, error) {
+	params := map[string]string{
+		"lat": fmt.Sprintf("%.7f", lat),
+		"lng": fmt.Sprintf("%.7f", lng),
+	}
+	var out NearbyResponse
+	if err := c.getJSON("/web/nearest/place", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) NearestBusesTyped(lat, lng float64, busStopID string) (*NearestBusResponse, error) {
+	params := map[string]string{
+		"accuracy":  "0",
+		"lat":       fmt.Sprintf("%.7f", lat),
+		"lng":       fmt.Sprintf("%.7f", lng),
+		"busStopId": busStopID,
+	}
+	var out NearestBusResponse
+	if err := c.getJSON("/web/nearest/bus", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) RoutePathInfoTyped(displayRouteCode, direction, resultType string) (*PathInfoResponse, error) {
+	params := map[string]string{
+		"displayRouteCode": displayRouteCode,
+		"direction":        direction,
+		"resultType":       resultType,
+	}
+	var out PathInfoResponse
+	if err := c.getJSON("/web/pathInfo", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *Client) get(endpoint string, extraParams map[string]string) ([]byte, error) {
+	body, err := c.doGet(endpoint, extraParams)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure responses returned by tools are always valid JSON.
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("decode response json: %w", err)
+	}
+
+	pretty, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("format response json: %w", err)
+	}
+
+	return pretty, nil
+}
+
+func (c *Client) getJSON(endpoint string, extraParams map[string]string, out any) error {
+	body, err := c.doGet(endpoint, extraParams)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("decode response json: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) doGet(endpoint string, extraParams map[string]string) ([]byte, error) {
 	reqURL, err := url.Parse(c.baseURL + endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("parse request url: %w", err)
@@ -120,21 +202,8 @@ func (c *Client) get(endpoint string, extraParams map[string]string) ([]byte, er
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
-
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
 	}
-
-	// Ensure responses returned by tools are always valid JSON.
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("decode response json: %w", err)
-	}
-
-	pretty, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("format response json: %w", err)
-	}
-
-	return pretty, nil
+	return body, nil
 }

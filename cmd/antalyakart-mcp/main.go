@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -31,6 +32,22 @@ type RoutePathAndVehiclesArgs struct {
 	DisplayRouteCode string `json:"display_route_code" jsonschema:"required,description=Public route code for example 106 or LC07A"`
 	Direction        int    `json:"direction" jsonschema:"required,description=Direction index where 0 and 1 are usually outbound and inbound"`
 	DataMode         string `json:"data_mode" jsonschema:"description=Choose full for geometry stops and schedule or live-only for active vehicle list only"`
+}
+
+type PlanDirectTripArgs struct {
+	OriginQuery      string `json:"origin_query" jsonschema:"required,description=Search text for origin stop for example otogar"`
+	DestinationQuery string `json:"destination_query" jsonschema:"required,description=Search text for destination stop for example markantalya"`
+	Language         string `json:"language" jsonschema:"description=Output language tr or en. Default en"`
+	OutputMode       string `json:"output_mode" jsonschema:"description=compact or detailed. Default compact"`
+	MaxRoutes        int    `json:"max_routes" jsonschema:"description=Maximum number of direct route options to return. Default 3"`
+}
+
+type SummarizeStopArrivalsArgs struct {
+	BusStopID  string  `json:"bus_stop_id" jsonschema:"required,description=Stop identifier for example 10828"`
+	Latitude   float64 `json:"latitude" jsonschema:"required,description=Latitude in decimal degrees"`
+	Longitude  float64 `json:"longitude" jsonschema:"required,description=Longitude in decimal degrees"`
+	Language   string  `json:"language" jsonschema:"description=Output language tr or en. Default en"`
+	OutputMode string  `json:"output_mode" jsonschema:"description=compact or detailed. Default compact"`
 }
 
 func main() {
@@ -125,6 +142,57 @@ func main() {
 		panic(err)
 	}
 
+	err = server.RegisterTool(
+		"plan_direct_trip_between_stops",
+		"Plan direct bus routes between two stop queries with ETA-focused summaries.",
+		func(arguments PlanDirectTripArgs) (*mcp_golang.ToolResponse, error) {
+			if strings.TrimSpace(arguments.OriginQuery) == "" {
+				return nil, fmt.Errorf("origin_query is required")
+			}
+			if strings.TrimSpace(arguments.DestinationQuery) == "" {
+				return nil, fmt.Errorf("destination_query is required")
+			}
+			result, err := client.BuildTripPlan(
+				arguments.OriginQuery,
+				arguments.DestinationQuery,
+				arguments.Language,
+				arguments.OutputMode,
+				arguments.MaxRoutes,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return objectToolResponse(result)
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	err = server.RegisterTool(
+		"summarize_stop_arrivals",
+		"Summarize upcoming bus arrivals at a stop grouped by route and direction.",
+		func(arguments SummarizeStopArrivalsArgs) (*mcp_golang.ToolResponse, error) {
+			if strings.TrimSpace(arguments.BusStopID) == "" {
+				return nil, fmt.Errorf("bus_stop_id is required")
+			}
+			result, err := client.SummarizeStopArrivals(
+				arguments.BusStopID,
+				arguments.Latitude,
+				arguments.Longitude,
+				arguments.Language,
+				arguments.OutputMode,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return objectToolResponse(result)
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	if err := server.Serve(); err != nil {
 		panic(err)
 	}
@@ -134,6 +202,14 @@ func jsonToolResponse(payload []byte) *mcp_golang.ToolResponse {
 	return mcp_golang.NewToolResponse(
 		mcp_golang.NewTextContent(string(payload)),
 	)
+}
+
+func objectToolResponse(payload any) (*mcp_golang.ToolResponse, error) {
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return jsonToolResponse(out), nil
 }
 
 func envOrDefault(key, fallback string) string {
