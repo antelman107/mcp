@@ -1,0 +1,315 @@
+openapi: 3.1.0
+info:
+  title: AntalyaKart Public Transit API (Unofficial)
+  version: 0.1.0
+  description: |
+    Unofficial API description reverse engineered from https://online.antalyakart.com.tr.
+    Base URL and defaults come from the public frontend config (`assets/config/appConfig.json`).
+servers:
+  - url: https://service.kentkart.com/rl1
+    description: Production backend used by AntalyaKart web app
+tags:
+  - name: discovery
+    description: Stop, route, place, and kiosk discovery
+  - name: realtime
+    description: Live vehicles and route path details
+paths:
+  /web/nearest/find:
+    get:
+      tags: [discovery]
+      operationId: searchRoutesAndStops
+      summary: Search route and stop data by optional keyword
+      parameters:
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/lang'
+        - $ref: '#/components/parameters/authType'
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Text query used to match routes, stops, and places.
+      responses:
+        '200':
+          description: Successful search response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearestFindResponse'
+  /web/nearest/place:
+    get:
+      tags: [discovery]
+      operationId: getNearbyPlacesStopsAndKiosks
+      summary: Find nearby places, kiosks, and bus stops for a coordinate
+      parameters:
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/lang'
+        - $ref: '#/components/parameters/authType'
+        - $ref: '#/components/parameters/lat'
+        - $ref: '#/components/parameters/lng'
+      responses:
+        '200':
+          description: Nearby result payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearestPlaceResponse'
+  /web/nearest/bus:
+    get:
+      tags: [realtime]
+      operationId: getNearestBusesForStop
+      summary: Live bus positions for a selected stop and area
+      parameters:
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/lang'
+        - $ref: '#/components/parameters/authType'
+        - $ref: '#/components/parameters/lat'
+        - $ref: '#/components/parameters/lng'
+        - name: accuracy
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "0"
+        - name: busStopId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Nearest bus and route details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearestBusResponse'
+  /web/pathInfo:
+    get:
+      tags: [realtime]
+      operationId: getRoutePathInfo
+      summary: Route geometry, stop list, schedule, and live buses
+      parameters:
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/lang'
+        - $ref: '#/components/parameters/authType'
+        - name: displayRouteCode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: direction
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["0", "1"]
+        - name: resultType
+          in: query
+          required: true
+          schema:
+            type: string
+            description: |
+              111111 returns full route data (stops, geometry, schedule, live buses).
+              010000 returns lightweight live bus list only.
+      responses:
+        '200':
+          description: Route path and live fleet payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PathInfoResponse'
+components:
+  parameters:
+    region:
+      name: region
+      in: query
+      required: true
+      schema:
+        type: string
+        default: "026"
+    lang:
+      name: lang
+      in: query
+      required: true
+      schema:
+        type: string
+        default: tr
+    authType:
+      name: authType
+      in: query
+      required: true
+      schema:
+        type: string
+        default: "4"
+    lat:
+      name: lat
+      in: query
+      required: true
+      schema:
+        type: number
+        format: double
+    lng:
+      name: lng
+      in: query
+      required: true
+      schema:
+        type: number
+        format: double
+  schemas:
+    ApiResult:
+      type: object
+      properties:
+        cmd:
+          type: string
+        code:
+          type: integer
+        message:
+          type: string
+        dateTime:
+          type: string
+      required: [cmd, code, message]
+      additionalProperties: true
+    RouteSummary:
+      type: object
+      properties:
+        routeCode:
+          type: string
+        displayRouteCode:
+          type: string
+        name:
+          type: string
+        routeColor:
+          type: string
+        direction:
+          type: string
+      additionalProperties: true
+    StopSummary:
+      type: object
+      properties:
+        stopId:
+          type: string
+        stopName:
+          type: string
+        lat:
+          type: string
+        lng:
+          type: string
+      additionalProperties: true
+    VehicleSummary:
+      type: object
+      properties:
+        busId:
+          type: string
+        displayRouteCode:
+          type: string
+        lat:
+          type: string
+        lng:
+          type: string
+        plate:
+          type: string
+        direction:
+          type: string
+      additionalProperties: true
+    PathPoint:
+      type: object
+      properties:
+        seq:
+          type: string
+        lat:
+          type: string
+        lng:
+          type: string
+      additionalProperties: true
+    PathInfoItem:
+      type: object
+      properties:
+        displayRouteCode:
+          type: string
+        direction:
+          type: string
+        headSign:
+          type: string
+        pointList:
+          type: array
+          items:
+            $ref: '#/components/schemas/PathPoint'
+        busList:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleSummary'
+        busStopList:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopSummary'
+      additionalProperties: true
+    NearestFindResponse:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ApiResult'
+        routeList:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteSummary'
+        stopList:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopSummary'
+        placeList:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [result]
+      additionalProperties: true
+    NearestPlaceResponse:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ApiResult'
+        placeList:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        kioskList:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        stopList:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopSummary'
+      required: [result]
+      additionalProperties: true
+    NearestBusResponse:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ApiResult'
+        stopInfo:
+          type: object
+          additionalProperties: true
+        busList:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleSummary'
+        routeList:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteSummary'
+      required: [result]
+      additionalProperties: true
+    PathInfoResponse:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ApiResult'
+        pathList:
+          type: array
+          items:
+            $ref: '#/components/schemas/PathInfoItem'
+      required: [result]
+      additionalProperties: true
