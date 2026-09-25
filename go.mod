@@ -1,4 +1,4 @@
-module antalyakart-mcp
+module github.com/antelman107/mcp
 
 go 1.22.2
 
