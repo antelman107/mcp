@@ -11,6 +11,34 @@ The same repo layout can host more MCPs over time under new `cmd/<server-name>` 
 
 ---
 
+## Distribution roadmap options (A / B / C)
+
+If we want to simplify onboarding further over time, these are the planned options:
+
+### Option A (next best step): GitHub Releases + package managers
+- Keep the Go binary authoritative.
+- Auto-build release artifacts for macOS/Linux/Windows.
+- Publish install channels such as:
+  - Homebrew tap (macOS/Linux)
+  - Scoop bucket (Windows)
+  - direct release binaries with checksums
+
+**Best for**: local installs without requiring Go.
+
+### Option B: Docker image + deployment recipe
+- Publish a container image that runs this MCP server.
+- Provide a deployment recipe for teams who want infra-managed execution.
+
+**Best for**: teams that standardize on containers.
+
+### Option C: Combined rollout (recommended order)
+1. Deliver Option A first (fastest user impact for installs).
+2. Add Option B after that for infra/container users.
+
+This repo currently ships the `go install` path and is ready for Option A next.
+
+---
+
 ## Quick install (recommended): `go install`
 
 Install from GitHub:
