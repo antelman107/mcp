@@ -10,7 +10,7 @@ import (
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 
-	"antalyakart-mcp/internal/antalyakart"
+	"github.com/antelman107/mcp/internal/antalyakart"
 )
 
 type SearchRoutesAndStopsArgs struct {
