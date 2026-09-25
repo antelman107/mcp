@@ -51,6 +51,8 @@ type SummarizeStopArrivalsArgs struct {
 }
 
 func main() {
+	done := make(chan struct{})
+
 	client := antalyakart.NewClient(
 		envOrDefault("ANTALYAKART_BASE_URL", antalyakart.DefaultBaseURL),
 		envOrDefault("ANTALYAKART_REGION", antalyakart.DefaultRegion),
@@ -196,6 +198,8 @@ func main() {
 	if err := server.Serve(); err != nil {
 		panic(err)
 	}
+
+	<-done
 }
 
 func jsonToolResponse(payload []byte) *mcp_golang.ToolResponse {
