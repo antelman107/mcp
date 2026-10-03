@@ -51,13 +51,13 @@ This puts the binary in:
 - `$GOBIN` (if set), or
 - `$(go env GOPATH)/bin`
 
-Make sure that folder is in your `PATH`, then test:
+Make sure that folder is in your `PATH`, then start it:
 
 ```bash
 antalyakart-mcp
 ```
 
-It is a stdio MCP server, so it waits for a client connection.
+It listens for MCP Streamable HTTP on `:8090` (override with `MCP_ADDR`). The endpoint is `/mcp`. A liveness check is `GET /healthz`.
 
 ---
 
@@ -81,9 +81,7 @@ go install ./cmd/antalyakart-mcp
 
 ## Configure MCP clients
 
-Use either:
-- a command from PATH: `antalyakart-mcp`, or
-- a full absolute binary path.
+Point the client at the HTTP endpoint. Locally that is `http://127.0.0.1:8090/mcp`. On the Turkish host it is `https://mcp.goturkey.club/mcp`.
 
 ### 1) Cursor
 
@@ -95,9 +93,7 @@ Config file:
 {
   "mcpServers": {
     "antalyakart": {
-      "type": "stdio",
-      "command": "antalyakart-mcp",
-      "args": []
+      "url": "https://mcp.goturkey.club/mcp"
     }
   }
 }
@@ -105,24 +101,8 @@ Config file:
 
 ### 2) Claude Code
 
-Recommended (CLI):
-
 ```bash
-claude mcp add --scope user antalyakart -- antalyakart-mcp
-```
-
-Manual config also works in `.mcp.json` or `~/.claude.json`:
-
-```json
-{
-  "mcpServers": {
-    "antalyakart": {
-      "type": "stdio",
-      "command": "antalyakart-mcp",
-      "args": []
-    }
-  }
-}
+claude mcp add --scope user --transport http antalyakart http://127.0.0.1:8090/mcp
 ```
 
 ### 3) Codex
@@ -133,8 +113,7 @@ Config file:
 
 ```toml
 [mcp_servers.antalyakart]
-command = "antalyakart-mcp"
-args = []
+url = "http://127.0.0.1:8090/mcp"
 ```
 
 ---
@@ -155,6 +134,7 @@ This server wraps APIs used by:
 
 ### Optional environment variables
 
+- `MCP_ADDR` (default: `:8090`)
 - `ANTALYAKART_BASE_URL` (default: `https://service.kentkart.com/rl1`)
 - `ANTALYAKART_REGION` (default: `026`)
 - `ANTALYAKART_LANG` (default: `tr`)

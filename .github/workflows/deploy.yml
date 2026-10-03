@@ -1,0 +1,71 @@
+# Deploys the linux binary to the Turkish host.
+# Repository secret TR_SSH_KEY must be the private key from ~/.ssh/tr.
+name: Deploy antalyakart-mcp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "deploy/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build linux binary
+        working-directory: cmd/antalyakart-mcp
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o antalyakart-mcp .
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.TR_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/tr
+          chmod 600 ~/.ssh/tr
+          ssh-keyscan -p 22667 -H 77.245.155.66 >> ~/.ssh/known_hosts
+
+      - name: Upload and install
+        run: |
+          scp -i ~/.ssh/tr -P 22667 -o StrictHostKeyChecking=yes \
+            ./cmd/antalyakart-mcp/antalyakart-mcp \
+            ./deploy/antalyakart-mcp.service \
+            ./deploy/Caddyfile \
+            rhaps107@77.245.155.66:~/
+          ssh -i ~/.ssh/tr -p 22667 -o StrictHostKeyChecking=yes \
+            rhaps107@77.245.155.66 'bash -s' <<'EOF'
+          set -euo pipefail
+          if ! command -v caddy >/dev/null 2>&1; then
+            sudo dnf install -y dnf-plugins-core
+            sudo dnf copr enable -y @caddy/caddy
+            sudo dnf install -y caddy
+          fi
+          sudo mkdir -p /var/www/mcp /etc/caddy
+          sudo mv ~/antalyakart-mcp /var/www/mcp/antalyakart-mcp
+          sudo chmod 755 /var/www/mcp/antalyakart-mcp
+          sudo chown rhaps107:rhaps107 /var/www/mcp /var/www/mcp/antalyakart-mcp
+          sudo mv ~/antalyakart-mcp.service /etc/systemd/system/antalyakart-mcp.service
+          sudo mv ~/Caddyfile /etc/caddy/Caddyfile
+          sudo firewall-cmd --permanent --add-service=http
+          sudo firewall-cmd --permanent --add-service=https
+          sudo firewall-cmd --reload
+          sudo systemctl daemon-reload
+          sudo systemctl enable antalyakart-mcp caddy
+          sudo systemctl restart antalyakart-mcp
+          sudo systemctl restart caddy
+          curl -fsS http://127.0.0.1:8090/healthz
+          EOF

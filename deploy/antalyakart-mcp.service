@@ -1,0 +1,16 @@
+[Unit]
+Description=AntalyaKart MCP HTTP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rhaps107
+Group=rhaps107
+ExecStart=/var/www/mcp/antalyakart-mcp
+Restart=on-failure
+RestartSec=2
+Environment=MCP_ADDR=127.0.0.1:8090
+
+[Install]
+WantedBy=multi-user.target
