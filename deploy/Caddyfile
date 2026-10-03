@@ -1,5 +1,7 @@
 mcp.goturkey.club {
-	reverse_proxy 127.0.0.1:8090 {
-		header_up Host {upstream_hostport}
+	handle /antalyakart* {
+		reverse_proxy 127.0.0.1:8090 {
+			header_up Host {upstream_hostport}
+		}
 	}
 }

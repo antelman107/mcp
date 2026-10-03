@@ -4,7 +4,7 @@ Transit tools for Antalya buses: routes, stops, nearby kiosks, live arrivals, an
 
 The server is already running. Point a client at:
 
-`https://mcp.goturkey.club/mcp`
+`https://mcp.goturkey.club/antalyakart`
 
 ## Connect
 
@@ -16,7 +16,7 @@ Project file `.cursor/mcp.json`, or global `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "antalyakart": {
-      "url": "https://mcp.goturkey.club/mcp"
+      "url": "https://mcp.goturkey.club/antalyakart"
     }
   }
 }
@@ -25,7 +25,7 @@ Project file `.cursor/mcp.json`, or global `~/.cursor/mcp.json`:
 ### Claude Code
 
 ```bash
-claude mcp add --scope user --transport http antalyakart https://mcp.goturkey.club/mcp
+claude mcp add --scope user --transport http antalyakart https://mcp.goturkey.club/antalyakart
 ```
 
 ### Codex
@@ -34,7 +34,7 @@ User file `~/.codex/config.toml`, or project `.codex/config.toml`:
 
 ```toml
 [mcp_servers.antalyakart]
-url = "https://mcp.goturkey.club/mcp"
+url = "https://mcp.goturkey.club/antalyakart"
 ```
 
 ## Try it
@@ -60,7 +60,7 @@ go install github.com/antelman107/mcp/cmd/antalyakart-mcp@latest
 antalyakart-mcp
 ```
 
-That listens on `http://127.0.0.1:8090/mcp`. `GET /healthz` returns `ok`.
+That listens on `http://127.0.0.1:8090/antalyakart`. `GET /healthz` returns `ok`. Another server on the same host gets its own path, for example `/another-mcp`.
 
 From a checkout:
 
@@ -73,6 +73,7 @@ Optional environment variables:
 | Variable | Default |
 |---|---|
 | `MCP_ADDR` | `:8090` |
+| `MCP_PATH` | `/antalyakart` |
 | `ANTALYAKART_BASE_URL` | `https://service.kentkart.com/rl1` |
 | `ANTALYAKART_REGION` | `026` |
 | `ANTALYAKART_LANG` | `tr` |

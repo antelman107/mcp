@@ -57,6 +57,10 @@ type SummarizeStopArrivalsArgs struct {
 
 func main() {
 	addr := envOrDefault("MCP_ADDR", ":8090")
+	endpoint := envOrDefault("MCP_PATH", "/antalyakart")
+	if !strings.HasPrefix(endpoint, "/") {
+		endpoint = "/" + endpoint
+	}
 
 	client := antalyakart.NewClient(
 		envOrDefault("ANTALYAKART_BASE_URL", antalyakart.DefaultBaseURL),
@@ -186,7 +190,7 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", mcpHandler)
+	mux.Handle(endpoint, mcpHandler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -216,7 +220,7 @@ func main() {
 		}
 	}()
 
-	log.Printf("antalyakart MCP listening on %s (endpoint /mcp)", addr)
+	log.Printf("antalyakart MCP listening on %s (endpoint %s)", addr, endpoint)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
