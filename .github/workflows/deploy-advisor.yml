@@ -1,0 +1,117 @@
+# Deploys the advisor linux binary the same way as antalyakart-mcp.
+# Repository secrets:
+#   TR_SSH_KEY          private key from ~/.ssh/tr
+#   TR_SSH_USER         SSH login
+#   TR_SSH_PORT         SSH port
+#   TELEGRAM_BOT_TOKEN  Telegram bot token
+#   GOOGLE_API_KEY      Gemini / Google ADK API key
+name: Deploy antalyakart-advisor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cmd/antalyakart-advisor/**"
+      - "internal/advisor/**"
+      - "internal/antalyakart/**"
+      - "deploy/antalyakart-advisor.service"
+      - "deploy/Caddyfile"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/deploy-advisor.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build linux binary
+        working-directory: cmd/antalyakart-advisor
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o antalyakart-advisor .
+
+      - name: Write server env
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$GOOGLE_API_KEY" ]; then
+            echo "Repository secrets TELEGRAM_BOT_TOKEN and GOOGLE_API_KEY are required."
+            exit 1
+          fi
+          umask 077
+          WEBHOOK_SECRET=$(openssl rand -hex 32)
+          export WEBHOOK_SECRET
+          python3 - << 'PY'
+          import os
+          from pathlib import Path
+          lines = [
+              "TELEGRAM_BOT_TOKEN=" + os.environ["TELEGRAM_BOT_TOKEN"],
+              "GOOGLE_API_KEY=" + os.environ["GOOGLE_API_KEY"],
+              "TELEGRAM_WEBHOOK_SECRET=" + os.environ["WEBHOOK_SECRET"],
+              "WEBHOOK_URL=https://mcp.goturkey.club/antalyakart-advisor/webhook",
+              "BOT_ADDR=127.0.0.1:8091",
+              "GEMINI_MODEL=gemini-flash-latest",
+          ]
+          Path("advisor.env").write_text("\n".join(lines) + "\n")
+          PY
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.TR_SSH_KEY }}
+          SSH_PORT: ${{ secrets.TR_SSH_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/tr
+          chmod 600 ~/.ssh/tr
+          ssh-keyscan -p "$SSH_PORT" -H mcp.goturkey.club >> ~/.ssh/known_hosts
+
+      - name: Upload and install
+        env:
+          SSH_USER: ${{ secrets.TR_SSH_USER }}
+          SSH_PORT: ${{ secrets.TR_SSH_PORT }}
+        run: |
+          scp -i ~/.ssh/tr -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            ./cmd/antalyakart-advisor/antalyakart-advisor \
+            ./deploy/antalyakart-advisor.service \
+            ./deploy/Caddyfile \
+            ./advisor.env \
+            "${SSH_USER}@mcp.goturkey.club:~/"
+          rm -f ./advisor.env
+          ssh -i ~/.ssh/tr -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "${SSH_USER}@mcp.goturkey.club" "bash -s -- $(printf '%q' "$SSH_USER")" <<'EOF'
+          set -euo pipefail
+          deploy_user=$1
+          if ! command -v caddy >/dev/null 2>&1; then
+            sudo dnf install -y dnf-plugins-core
+            sudo dnf copr enable -y @caddy/caddy
+            sudo dnf install -y caddy
+          fi
+          sudo mkdir -p /var/www/mcp /etc/caddy
+          sudo mv ~/antalyakart-advisor /var/www/mcp/antalyakart-advisor
+          sudo mv ~/advisor.env /var/www/mcp/antalyakart-advisor.env
+          sudo chmod 755 /var/www/mcp/antalyakart-advisor
+          sudo chmod 600 /var/www/mcp/antalyakart-advisor.env
+          sudo chown "${deploy_user}:${deploy_user}" \
+            /var/www/mcp \
+            /var/www/mcp/antalyakart-advisor \
+            /var/www/mcp/antalyakart-advisor.env
+          sed "s/__DEPLOY_USER__/${deploy_user}/g" ~/antalyakart-advisor.service | sudo tee /etc/systemd/system/antalyakart-advisor.service >/dev/null
+          rm -f ~/antalyakart-advisor.service
+          sudo mv ~/Caddyfile /etc/caddy/Caddyfile
+          sudo firewall-cmd --permanent --add-service=http
+          sudo firewall-cmd --permanent --add-service=https
+          sudo firewall-cmd --reload
+          sudo systemctl daemon-reload
+          sudo systemctl enable antalyakart-advisor caddy
+          sudo systemctl restart antalyakart-advisor
+          sudo systemctl restart caddy
+          curl -fsS http://127.0.0.1:8091/healthz
+          EOF
