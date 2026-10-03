@@ -41,7 +41,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/tr
           chmod 600 ~/.ssh/tr
-          ssh-keyscan -p "$SSH_PORT" -H 77.245.155.66 >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H mcp.goturkey.club >> ~/.ssh/known_hosts
 
       - name: Upload and install
         env:
@@ -52,9 +52,9 @@ jobs:
             ./cmd/antalyakart-mcp/antalyakart-mcp \
             ./deploy/antalyakart-mcp.service \
             ./deploy/Caddyfile \
-            "${SSH_USER}@77.245.155.66:~/"
+            "${SSH_USER}@mcp.goturkey.club:~/"
           ssh -i ~/.ssh/tr -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
-            "${SSH_USER}@77.245.155.66" "bash -s -- $(printf '%q' "$SSH_USER")" <<'EOF'
+            "${SSH_USER}@mcp.goturkey.club" "bash -s -- $(printf '%q' "$SSH_USER")" <<'EOF'
           set -euo pipefail
           deploy_user=$1
           if ! command -v caddy >/dev/null 2>&1; then
