@@ -1,5 +1,8 @@
 # Deploys the linux binary to the Turkish host.
-# Repository secret TR_SSH_KEY must be the private key from ~/.ssh/tr.
+# Repository secrets:
+#   TR_SSH_KEY  private key from ~/.ssh/tr
+#   TR_SSH_USER SSH login
+#   TR_SSH_PORT SSH port
 name: Deploy antalyakart-mcp
 
 on:
@@ -33,22 +36,27 @@ jobs:
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.TR_SSH_KEY }}
+          SSH_PORT: ${{ secrets.TR_SSH_PORT }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/tr
           chmod 600 ~/.ssh/tr
-          ssh-keyscan -p 22667 -H 77.245.155.66 >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H 77.245.155.66 >> ~/.ssh/known_hosts
 
       - name: Upload and install
+        env:
+          SSH_USER: ${{ secrets.TR_SSH_USER }}
+          SSH_PORT: ${{ secrets.TR_SSH_PORT }}
         run: |
-          scp -i ~/.ssh/tr -P 22667 -o StrictHostKeyChecking=yes \
+          scp -i ~/.ssh/tr -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
             ./cmd/antalyakart-mcp/antalyakart-mcp \
             ./deploy/antalyakart-mcp.service \
             ./deploy/Caddyfile \
-            rhaps107@77.245.155.66:~/
-          ssh -i ~/.ssh/tr -p 22667 -o StrictHostKeyChecking=yes \
-            rhaps107@77.245.155.66 'bash -s' <<'EOF'
+            "${SSH_USER}@77.245.155.66:~/"
+          ssh -i ~/.ssh/tr -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "${SSH_USER}@77.245.155.66" "bash -s -- $(printf '%q' "$SSH_USER")" <<'EOF'
           set -euo pipefail
+          deploy_user=$1
           if ! command -v caddy >/dev/null 2>&1; then
             sudo dnf install -y dnf-plugins-core
             sudo dnf copr enable -y @caddy/caddy
@@ -57,8 +65,9 @@ jobs:
           sudo mkdir -p /var/www/mcp /etc/caddy
           sudo mv ~/antalyakart-mcp /var/www/mcp/antalyakart-mcp
           sudo chmod 755 /var/www/mcp/antalyakart-mcp
-          sudo chown rhaps107:rhaps107 /var/www/mcp /var/www/mcp/antalyakart-mcp
-          sudo mv ~/antalyakart-mcp.service /etc/systemd/system/antalyakart-mcp.service
+          sudo chown "${deploy_user}:${deploy_user}" /var/www/mcp /var/www/mcp/antalyakart-mcp
+          sed "s/__DEPLOY_USER__/${deploy_user}/g" ~/antalyakart-mcp.service | sudo tee /etc/systemd/system/antalyakart-mcp.service >/dev/null
+          rm -f ~/antalyakart-mcp.service
           sudo mv ~/Caddyfile /etc/caddy/Caddyfile
           sudo firewall-cmd --permanent --add-service=http
           sudo firewall-cmd --permanent --add-service=https

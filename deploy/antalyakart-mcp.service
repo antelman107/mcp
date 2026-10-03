@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=rhaps107
-Group=rhaps107
+User=__DEPLOY_USER__
+Group=__DEPLOY_USER__
 ExecStart=/var/www/mcp/antalyakart-mcp
 Restart=on-failure
 RestartSec=2
