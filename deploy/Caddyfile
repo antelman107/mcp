@@ -4,4 +4,7 @@ mcp.goturkey.club {
 			header_up Host {upstream_hostport}
 		}
 	}
+	handle {
+		respond "not found" 404
+	}
 }
