@@ -80,3 +80,28 @@ Optional environment variables:
 | `ANTALYAKART_AUTH_TYPE` | `4` |
 
 API notes live in `docs/investigation-notes.md` and `docs/antalyakart-openapi.yaml`.
+
+## Telegram advisor
+
+`antalyakart-advisor` is the Telegram bot `@antalyakart_advisor_bot`. It answers bus questions with a Google ADK for Go agent (`LlmAgent` and `Runner`, at most six model rounds) and the same AntalyaKart tools as the MCP server. After deploy, Telegram posts updates to `https://mcp.goturkey.club/antalyakart-advisor/webhook`.
+
+Chat history is one JSON file, a map of chat id to messages. The default name is `chat-history.json` next to the executable, so the process can be started from another directory. `CHAT_HISTORY_PATH` overrides it; a relative value is still resolved from the executable directory.
+
+```bash
+go build -o bin/antalyakart-advisor ./cmd/antalyakart-advisor
+```
+
+The binary listens on `127.0.0.1:8091`. `GET /healthz` returns `ok`.
+
+| Variable | Required | Default |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | yes | |
+| `GOOGLE_API_KEY` | yes | Gemini / ADK key |
+| `GEMINI_MODEL` | no | `gemini-flash-latest` |
+| `WEBHOOK_URL` | no | empty skips webhook registration |
+| `TELEGRAM_WEBHOOK_SECRET` | no | empty accepts any caller |
+| `BOT_ADDR` | no | `127.0.0.1:8091` |
+| `BOT_PATH` | no | `/antalyakart-advisor` |
+| `CHAT_HISTORY_PATH` | no | `chat-history.json` beside the executable |
+
+Put the token and API key in a gitignored env file or in the server env. `.env.example` lists the names. Deploy writes `/var/www/mcp/antalyakart-advisor.env` from GitHub Actions secrets `TELEGRAM_BOT_TOKEN` and `GOOGLE_API_KEY`, using the same SSH host and workflow shape as `antalyakart-mcp` (`.github/workflows/deploy-advisor.yml`).
